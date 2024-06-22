@@ -1,0 +1,161 @@
+<?php
+class User
+{
+    private $users_table = "users";
+    private $taches_table = "taches";
+    public $user_conn;
+    //Données personnelles propres à l'utilisateur
+    public $email_user;
+    public $nom_user;
+    public $mdp_user;
+    public $photo_user;
+
+
+    //Données personnelles des tâches
+    public $nom_tache;
+    public $description_tache;
+    public $date_tache;
+    public $heure_tache;
+    public $priorite_tache;
+
+
+    public function __construct($con)
+    {
+        $this->user_conn = $con;
+    }
+
+
+    //Fonctions afficher, modifier, créer et supprimer
+
+
+
+    //Aficher les taches ordonnées en fonction des priorités
+    public function afficherTaches($email_user, $con)
+    {
+        $query = "SELECT (nom_tache,description_tache,date_tache,heure_tache,statut_tache,email_user)FROM" . $this->taches_table . "WHERE" . $this->taches_table . ".email_user =" . $email_user . "ORDER BY" . $this->taches_table . ".priorite_tache DESC";
+        $con->prepare($query);
+        $con->execute();
+        if ($con->execute()) {
+            header("Location:user.php#tache");
+        }
+
+    }
+
+    //Créer une nouvelle tâche 
+
+    public function creationTaches($nom_tache, $description_tache, $date_tache, $heure_tache, $priorite_tache, $con)
+    {
+        $query = "INSERT INTO" . $this->taches_table . "(nom_tache,description_tache,date_tache,heure_tache,priorite_tache) VALUES (':nom_tache',':description_tache',':date_tache',':heure_tache',':priorite_tache')";
+        $con->prepare($query);
+        // $this->nom_tache = $_POST['name'];
+        // $this->description_tache = $_POST['description'];
+        // $this->date_tache = ['date'];
+        // $this->heure_tache = $_POST['time'];
+        // $this->priorite_tache = $_POST['priorite'];
+
+        $con->bindParam(':nom', strip_tags($nom_tache));
+        $con->bindParam(':description', strip_tags($description_tache));
+        $con->bindParam(':date', strip_tags($date_tache));
+        $con->bindParam(':heure_tache', strip_tags($heure_tache));
+        $con->bindParam(':priorite', strip_tags($priorite_tache));
+        return (
+            $con->execute()
+        );
+    }
+
+
+    //Suppression de tâche
+    public function suppressionTaches($tache_spr, $email_user, $con)
+    {
+        $query = "DELETE FROM" . $this->users_table . "WHERE" . $this->taches_table . ".email_user =" . $email_user . "AND" . $this->taches_table . "nom_tache =:nom_tache";
+        $con->prepare($query);
+        $con->bindParam(':nom_tache', strip_tags($tache_spr));
+        return (
+            $con->execute()
+        );
+
+    }
+
+    //Modification de tâche
+
+    public function modificationTaches()
+    {
+
+    }
+
+    //Connexion de l'utilisateur
+
+    public function userConnexion($email_user, $mdp_user, $con)
+    {
+        $query = "SELECT * FROM" . $this->users_table . "WHERE user_email=:user_email";
+        $con->prepare($query);
+        $con->bindParam(':user_email', $email_user);
+        $con->execute();
+        $row = $con->fetch(PDO::FETCH_ASSOC);
+        if ($row->rowCount() == 1) {
+            if (password_verify($mdp_user, $row['mdp_user'])) {
+                session_start();
+                $_SESSION['user_email'] = $row['user_email'];
+                $_SESSION['mdp_user'] = $row['mdp_user'];
+                $_SESSION['photo_user'] = $row['photo_user'];
+                header('Location: ../user.php');
+            }
+
+            header('Location: ../inscription.php');
+        }
+
+    }
+
+    //Inscritipn utilisateurs
+
+    public function inscriptionUser($email_user, $nom_user, $mdp_user, $photo_chemin, $photo_nom, $con)
+    {
+        $query = "SELECT * FROM" . $this->users_table . "WHERE user_email=:user_email";
+        $con->prepare($query);
+        $con->bindParam(':user_email', $email_user);
+        $con->execute();
+        $row = $con->fetch(PDO::FETCH_ASSOC);
+        if ($row->rowCount() == 0) {
+
+
+            $query = "INSERT INTO" . $this->users_table . "(email_user,nom_user,mdp_user,photo_user) VALUES (':email_user',':nom_user',':mdp_user',':photo_user')";
+            $con->prepare($query);
+            // $this->email_user = $_POST['email'];
+            // $this->nom_user = $_POST['name'];
+            // $this->mdp_user = password_hash($mdp, PASSWORD_BCRYPT);
+
+
+
+            // // Récupération du chemin temporaire de la photo
+            // $this->photo_user = $_FILES['photo']['tmp_name'];
+
+
+            // Chemin de destination pour enregistrer le fichier
+            $chemin_destination = "C:\\wamp64\\www\\Gestionnaire-de-tache\\images\\images_users" . $photo_nom;
+
+            // Déplacement du fichier uploadé vers le dossier de destination
+            move_uploaded_file($photo_chemin, $chemin_destination);
+
+            $con->bindParam(':email_user', strip_tags($email_user));
+            $con->bindParam(':nom_user', strip_tags($nom_user));
+            $con->bindParam(':mdp_user', password_hash(strip_tags($mdp_user), PASSWORD_BCRYPT));
+            $con->bindParam(':photo_user', strip_tags($chemin_destination));
+            $con->execute();
+            if ($con->execute()) {
+                header('Location:../connextion.php');
+            } else {
+                header('Location:../inscription.php');
+            }
+        }
+
+    }
+    public function deconnexionUser()
+    {
+        if (isset($_SESSION)) {
+            session_start();
+            session_unset();
+            session_destroy();
+        }
+        header('Location:../index.php');
+    }
+}
